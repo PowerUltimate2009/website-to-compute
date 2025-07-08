@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Protocole Zéro - Auto-destruction</title>
+<style>
+  html, body {
+    margin:0; padding:0; height:100%;
+    background: black;
+    color: red;
+    font-family: monospace, monospace;
+    overflow: hidden;
+  }
+  body.success {
+    color: lime;
+  }
+  body.failure {
+    color: red;
+  }
+  #container {
+    max-width: 700px;
+    margin: 2em auto;
+    padding: 1em;
+    user-select: none;
+    text-align: center;
+  }
+  #countdown {
+    font-size: 6em;
+    font-weight: bold;
+    margin-bottom: 1em;
+    user-select: none;
+  }
+  #attempts {
+    font-size: 1.5em;
+    margin-bottom: 1em;
+    color: orange;
+    font-weight: bold;
+  }
+  input[type=text] {
+    font-size: 1.8em;
+    padding: 0.5em;
+    width: 60%;
+    border-radius: 5px;
+    border: 2px solid gray;
+  }
+  button {
+    font-size: 1.8em;
+    padding: 0.5em 1em;
+    margin-left: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    border: none;
+    background: #222;
+    color: white;
+  }
+  button:hover {
+    background: #444;
+  }
+  #message {
+    margin-top: 1em;
+    font-weight: bold;
+    font-size: 1.2em;
+    min-height: 1.5em;
+  }
+  /* Gros message central */
+  #bigMessage {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10em;
+    font-weight: 900;
+    text-align: center;
+    display: none;
+    user-select: none;
+    z-index: 1000;
+    animation: blink 1s steps(2, start) infinite;
+    text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+  }
+  @keyframes blink {
+    50% {opacity: 0;}
+  }
+  /* Pluie binaire */
+  #binaryRain {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: black;
+    user-select: none;
+    display: none;
+    z-index: 900;
+  }
+  /* Explosion petits carrés */
+  .frag {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background-color: currentColor;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 1100;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <h1>Protocole Zéro : Auto-destruction</h1>
+  <p>Temps restant avant effondrement du système :</p>
+  <div id="countdown">60</div>
+
+  <div id="attempts">Essais restants : 3</div>
+
+  <p>Résolvez l'énigme avant la fin :</p>
+  <p><em>« Sans moi, vous ne pouvez commencer.<br>
+  Sans moi, vous ne pouvez finir.<br>
+  Je suis l’ombre du silence,<br>
+  et pourtant je fais du bruit.<br>
+  Qui suis-je ? »</em></p>
+
+  <input type="text" id="answer" autocomplete="off" placeholder="Réponse ici..." />
+  <button id="submitBtn">Valider</button>
+
+  <div id="message"></div>
+</div>
+
+<div id="bigMessage"></div>
+<div id="binaryRain"></div>
+
+<script>
+(() => {
+  const correctAnswers = ['le temps', 'temps', 'souffle', 'le souffle', 'la pensée', 'pensée', 'lettre e', 'la lettre e', 'e'];
+  let timeLeft = 60;
+  let attemptsLeft = 3;
+  let timerInterval = null;
+
+  const container = document.getElementById('container');
+  const countdown = document.getElementById('countdown');
+  const attemptsDisplay = document.getElementById('attempts');
+  const message = document.getElementById('message');
+  const answerInput = document.getElementById('answer');
+  const submitBtn = document.getElementById('submitBtn');
+  const bigMessage = document.getElementById('bigMessage');
+  const binaryRain = document.getElementById('binaryRain');
+
+  function normalize(str) {
+    return str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function updateCountdown() {
+    countdown.textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      failSequence();
+    }
+  }
+
+  function updateAttempts() {
+    attemptsDisplay.textContent = `Essais restants : ${attemptsLeft}`;
+    if (attemptsLeft <= 0) {
+      clearInterval(timerInterval);
+      failSequence();
+    }
+  }
+
+  function startCountdown() {
+    updateCountdown();
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      updateCountdown();
+    }, 1000);
+  }
+
+  function failSequence() {
+    document.body.classList.remove('success');
+    document.body.classList.add('failure');
+    message.textContent = "Système détruit !";
+
+    explodeText(() => {
+      showBigMessage('ERREUR', 'red');
+      startBinaryRain('red', () => {
+        explosionEffect(() => {
+          showFinalMessage(false);
+        });
+      });
+    });
+  }
+
+  function successSequence() {
+    clearInterval(timerInterval);
+    document.body.classList.remove('failure');
+    document.body.classList.add('success');
+    message.textContent = "Bonne réponse !";
+
+    explodeText(() => {
+      showBigMessage('SUCCESS', 'lime');
+      startBinaryRain('lime', () => {
+        showFinalMessage(true);
+      });
+    });
+  }
+
+  // Fragmentation du texte (effet éclatement)
+  function explodeText(callback) {
+    const text = container.innerText;
+    container.style.userSelect = 'none';
+    container.innerHTML = '';
+
+    for(let i=0; i<text.length; i++) {
+      const span = document.createElement('span');
+      span.textContent = text[i];
+      span.style.display = 'inline-block';
+      span.style.transition = 'transform 1.5s ease, opacity 1.5s ease';
+      container.appendChild(span);
+    }
+
+    setTimeout(() => {
+      const spans = container.querySelectorAll('span');
+      spans.forEach(span => {
+        const x = (Math.random() - 0.5) * 400; 
+        const y = (Math.random() - 0.5) * 400;
+        const rot = (Math.random() - 0.5) * 720;
+        span.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg) scale(0)`;
+        span.style.opacity = '0';
+      });
+    }, 50);
+
+    setTimeout(() => {
+      callback();
+    }, 1600);
+  }
+
+  function showBigMessage(text, color) {
+    bigMessage.style.color = color;
+    bigMessage.textContent = text;
+    bigMessage.style.display = 'block';
+  }
+
+  // Pluie binaire style matrix
+  function startBinaryRain(color, onReady) {
+    binaryRain.style.color = color;
+    binaryRain.style.display = 'block';
+
+    const canvas = document.createElement('canvas');
+    binaryRain.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const fontSize = 16;
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops = Array(columns).fill(0);
+    const chars = ['0', '1'];
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = color;
+      ctx.font = fontSize + 'px monospace';
+
+      for(let i=0; i<columns; i++) {
+        const char = chars[Math.floor(Math.random()*chars.length)];
+        ctx.fillText(char, i*fontSize, drops[i]*fontSize);
+
+        if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        } else {
+          drops[i]++;
+        }
+      }
+    }
+
+    const interval = setInterval(draw, 50);
+
+    // On appelle la callback après 2 secondes de pluie binaire
+    setTimeout(() => {
+      clearInterval(interval);
+      binaryRain.style.display = 'none';
+      binaryRain.removeChild(canvas);
+      if(onReady) onReady();
+    }, 2000);
+  }
+
+  // Explosion petits carrés qui partent dans tous les sens
+  function explosionEffect(callback) {
+    const fragCount = 120;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    let completed = 0;
+
+    for(let i=0; i<fragCount; i++) {
+      const frag = document.createElement('div');
+      frag.classList.add('frag');
+      frag.style.left = (w/2 + (Math.random() - 0.5)*200) + 'px';
+      frag.style.top = (h/2 + (Math.random() - 0.5)*200) + 'px';
+      frag.style.backgroundColor = document.body.classList.contains('success') ? 'lime' : 'red';
+      document.body.appendChild(frag);
+
+      // Animation
+      const angle = Math.random() * 2 * Math.PI;
+      const distance = Math.random() * 400 + 100;
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance;
+
+      frag.animate([
+        {transform: 'translate(0, 0) scale(1)', opacity: 1},
+        {transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0}
+      ], {
+        duration: 1800,
+        easing: 'ease-out',
+        fill: 'forwards'
+      }).onfinish = () => {
+        frag.remove();
+        completed++;
+        if(completed === fragCount && callback) callback();
+      };
+    }
+  }
+
+  function showFinalMessage(success) {
+    container.innerHTML = '';
+    bigMessage.style.display = 'block';
+    bigMessage.style.color = success ? 'lime' : 'red';
+    bigMessage.style.fontSize = '4em';
+    bigMessage.style.userSelect = 'text';
+
+    if(success) {
+      bigMessage.textContent = 'Système désactivé.\nVous avez réussi.';
+    } else {
+      bigMessage.textContent = 'Système détruit.\nÉchec fatal.';
+    }
+  }
+
+  submitBtn.addEventListener('click', () => {
+    const userAnswer = normalize(answerInput.value);
+    if(userAnswer.length === 0) {
+      message.textContent = "Veuillez entrer une réponse.";
+      return;
+    }
+
+    // Vérification si réponse correcte (parmi les bonnes réponses)
+    const isCorrect = correctAnswers.some(ans => ans === userAnswer);
+
+    if(isCorrect) {
+      successSequence();
+    } else {
+      attemptsLeft--;
+      updateAttempts();
+      if(attemptsLeft > 0) {
+        message.textContent = `Mauvaise réponse. Réessayez.`;
+      } else {
+        message.textContent = `Plus d'essais restants.`;
+        failSequence();
+      }
+    }
+    answerInput.value = '';
+    answerInput.focus();
+  });
+
+  answerInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') {
+      submitBtn.click();
+    }
+  });
+
+  // Démarrage du compte à rebours
+  startCountdown();
+})();
+</script>
+
+</body>
+</html>
